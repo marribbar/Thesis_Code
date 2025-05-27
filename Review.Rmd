@@ -1,0 +1,86 @@
+---
+title: "Sistematic review"
+output: html_notebook
+---
+Installing packages
+---
+We need to install and read first the necessary packages:
+
+```{r}
+install.packages(c("BiocManager","metagear","readxl","tidyverse"))
+BiocManager::install("EBImage")
+library("metagear")
+library("readxl")
+library("tidyverse")
+library("BiocManager")
+```
+---
+Upload and manage file from WOS
+---
+Web of Science exports a file that usually has columns such as: Title, Authors, Source, Abstract, Keywords, etc.
+```{r}
+# Watch which sheets your file has
+excel_sheets("Bibliografia_para_revisar.xls")
+
+# Upload excel file
+Bibliografia <- read_excel("Bibliografia_para_revisar.xls",sheet = "savedrecs_todos")
+
+# Watch the structure of your dataset
+str("Bibliografia_para_revisar.xls", sheet = "savedrecs_todos")
+glimpse("Bibliografia_para_revisar.xls", sheet = "savedrecs_todos")
+
+# Watch the names of the columns
+names(Bibliografia)
+```
+As metagear expects a data frame with at least one column called 'title' and another 'abstract' for screening, in the next step we will change the name of the columns, because as we saw in the previous step, there are the columns "Abstract" and "Article Title". And and R discriminates if there are uppercase or lowercase letters, or if it has not been written exactly the same ("title" or "abstract"):
+
+```{r}
+# Renombrar si es necesario
+colnames(Bibliografia)[which(names(Bibliografia) == "Article Title")] <- "title"      # Título
+colnames(Bibliografia)[which(names(Bibliografia) == "Abstract")] <- "abstract"   # Resumen
+
+```
+---
+Screening
+---
+Here we are going to create the screening file (Bibliografia_para_revisar_2.csv), with only one revisor (Marta in this case)
+
+```{r}
+Bibliografia_filtrada <- Bibliografia[, c("title", "abstract")] #selects the necessary columns
+
+Screening_file <- effort_initialize(Bibliografia_filtrada,
+  study_ID = TRUE,
+  unscreenedValue = "not vetted",
+  dual = FALSE,
+  front = TRUE)
+
+# Assign unique reviewer
+Screening_file$reviewer <- "Marta"
+
+# Distribute tasks (even though it's just one person)
+effort_distribute(Screening_file, reviewers = "Marta", initialize = TRUE)
+
+# Save the file to send it to abstract_screener:
+write_excel_csv(Screening_file, "Bibliografia_para_revisar_2.csv", delim = ",")
+```
+
+
+Initialize the interface of metagear to start the review:
+
+```{r}
+abstract_screener(
+  file = "Bibliografia_para_revisar_2.csv",
+  unscreenedColumnName = "INCLUDE",
+  unscreenedValue = "not vetted",
+  browserSearch = "https://www.google.com/search?q=",
+  fontSize = 13,
+  windowWidth = 70,
+  windowHeight = 16,
+  theButtons = c("YES", "maybe", "NO"),
+  keyBindingToButtons = c("y", "m", "n"),
+  buttonSize = 10,
+  highlightColor = "powderblue",
+  highlightKeywords = NA
+)
+```
+
